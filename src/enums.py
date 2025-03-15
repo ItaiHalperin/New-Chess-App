@@ -9,11 +9,12 @@ class PieceType(Enum):
     ROOK = auto()
     QUEEN = auto()
     KING = auto()
+
     def __str__(self):
         return self.name
 
     @classmethod
-    def from_string(cls, name: str)-> Self:
+    def from_string(cls, name: str) -> Self:
         try:
             return cls[name]  # Lookup enum by name
         except KeyError:
@@ -23,12 +24,30 @@ class PieceType(Enum):
 class Color(Enum):
     WHITE = auto()
     BLACK = auto()
+
     def __str__(self):
         return self.name
 
     @classmethod
-    def from_string(cls, name: str)-> Self:
+    def from_string(cls, name: str) -> Self:
         try:
             return cls[name]  # Lookup enum by name
         except KeyError:
             raise ValueError(f"'{name}' is not a valid Color")
+
+
+class MessageType(Enum):
+    STARTUP = auto()
+    MOVE_SELECTED = auto()
+    BOARD_UPDATE = auto()
+    RESTART = auto()
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def from_string(cls, name: str) -> Self:
+        try:
+            return cls[name]  # Lookup enum by name
+        except KeyError:
+            raise ValueError(f"'{name}' is not a valid MessageType")
