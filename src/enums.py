@@ -10,7 +10,7 @@ class PieceType(Enum):
     QUEEN = auto()
     KING = auto()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     @classmethod
@@ -25,7 +25,7 @@ class Color(Enum):
     WHITE = auto()
     BLACK = auto()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     @classmethod
@@ -41,8 +41,12 @@ class MessageType(Enum):
     MOVE_SELECTED = auto()
     BOARD_UPDATE = auto()
     RESTART = auto()
+    NEW_STATE = auto()
+    CHECKMATE = auto()
+    FAILED_MOVE = auto()
+    PROMOTION = auto()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     @classmethod

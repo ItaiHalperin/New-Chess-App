@@ -1,12 +1,21 @@
 from abs_chess_board import AbsChessBoard
 from src.enums import PieceType, Color
 from src.piece import Piece
-from src.types import Position
+from src.data_types import Position
 
 
 class MoveVerifier:
     def __init__(self, board: AbsChessBoard):
         self.board = board
+
+    def is_final_rank_pawn(self, start_pos: Position, end_pos: Position) -> bool:
+        x2, y2 = end_pos
+        piece = self.board.get_piece(start_pos)
+        if piece.type != PieceType.PAWN:
+            return False
+        final_rank = 0 if piece.color == Color.BLACK else 7
+        return bool(y2 == final_rank)
+
     def is_valid_move(self, start_pos: Position, end_pos: Position) -> bool:
         piece = self.board.get_piece(start_pos)
         if piece is None:
@@ -31,23 +40,23 @@ class MoveVerifier:
 
         # Rook logic: moves horizontally or vertically
         if piece.type == PieceType.ROOK:
-            return x1 == x2 or y1 == y2
+            return bool(x1 == x2 or y1 == y2)
 
         # Bishop logic: moves diagonally (both x and y change equally)
         elif piece.type == PieceType.BISHOP:
-            return abs(x2 - x1) == abs(y2 - y1)
+            return bool(abs(x2 - x1) == abs(y2 - y1))
 
         # Knight logic: moves in an "L" shape (2 squares in one direction, 1 in the other)
         elif piece.type == PieceType.KNIGHT:
-            return (abs(x2 - x1) == 2 and abs(y2 - y1) == 1) or (abs(x2 - x1) == 1 and abs(y2 - y1) == 2)
+            return bool((abs(x2 - x1) == 2 and abs(y2 - y1) == 1) or (abs(x2 - x1) == 1 and abs(y2 - y1) == 2))
 
         # Queen logic: combines the movement of both the Rook and the Bishop
         elif piece.type == PieceType.QUEEN:
-            return x1 == x2 or y1 == y2 or abs(x2 - x1) == abs(y2 - y1)
+            return bool(x1 == x2 or y1 == y2 or abs(x2 - x1) == abs(y2 - y1))
 
         # King logic: moves one square in any direction
         elif piece.type == PieceType.KING:
-            return abs(x2 - x1) <= 1 and abs(y2 - y1) <= 1
+            return bool(abs(x2 - x1) <= 1 and abs(y2 - y1) <= 1)
 
         # Pawn logic: moves forward one square, or two squares from its starting position; captures diagonally
         elif piece.type == PieceType.PAWN:
@@ -88,13 +97,13 @@ class MoveVerifier:
         y_dir = 1 if y1 < y2 else -1 if y1 > y2 else 0
         x, y = x1 + x_dir, y1 + y_dir
         while (x, y) != end_pos:
-            cur_piece = self.board.get_piece(Position(x,y))
+            cur_piece = self.board.get_piece(Position(x, y))
             if cur_piece is not None:
                 return False
             x, y = x + x_dir, y + y_dir
         return True
 
-    def _would_leave_in_check(self, piece, start_pos, end_pos) -> bool:
+    def _would_leave_in_check(self, piece: Piece, start_pos: Position, end_pos: Position) -> bool:
         end_piece = self.board.get_piece(end_pos)
         self.board.move(start_pos, end_pos)
         king_color = piece.color
@@ -115,12 +124,12 @@ class MoveVerifier:
     def _is_direction_safe(self, king_color: Color, king_position: Position, x_dir: int, y_dir: int) -> bool:
         x, y = king_position[0] + x_dir, king_position[1] + y_dir
         while 0 <= x <= 7 and 0 <= y <= 7:
-            cur_piece = self.board.get_piece(Position(x,y))
+            cur_piece = self.board.get_piece(Position(x, y))
             if cur_piece is None:
                 x += x_dir
                 y += y_dir
             elif cur_piece.color != king_color:
-                return self._is_valid_pattern(cur_piece, Position(x,y), king_position)
+                return self._is_valid_pattern(cur_piece, Position(x, y), king_position)
             else:
                 return True
         return True
@@ -139,12 +148,10 @@ class MoveVerifier:
             if 0 <= x <= 7 and 0 <= y <= 7:
                 piece = self.board.get_piece(Position(x, y))
 
-                # If there's a knight of the opposite color at this position, the king is threatened
-                if (piece is not None and
-                        piece.type == PieceType.KNIGHT and
-                        piece.color != king_color):
+                # If there's a knight of the opposite color at this position,
+                # the king is threatened
+                if piece is not None and piece.type == PieceType.KNIGHT and piece.color != king_color:
                     return True
 
         # No threatening knights found
         return False
-
