@@ -8,6 +8,8 @@ from src.data_types import Position, GameState
 
 
 class ChessBoard(AbsChessBoard):
+
+
     def promote_pawn(self, promotion_piece: Piece, position: Position) -> None:
         self.board[position[0]][position[1]] = promotion_piece
 
@@ -45,15 +47,20 @@ class ChessBoard(AbsChessBoard):
     ) -> None:
         super().__init__()
         if board is None:
-            if turn is None:
-                raise ValueError(f"'{turn}' is not a valid Turn for default chess board")
-            self.board, self.white_king_position, self.white_king_position = ChessBoard.default_board()
-            self.turn = turn
+            if turn is not None:
+                self.board, self.white_king_position, self.black_king_position = ChessBoard.default_board()
+                self.turn = turn
+                self.is_white_checked = False
+                self.is_black_checked = False
         elif game_state is not None:
             self.board = board
-            self.white_king_position = game_state["WHITE_KING_POSITION"]
-            self.black_king_position = game_state["BLACK_KING_POSITION"]
-            self.turn = game_state["TURN"]
+            self.white_king_position = game_state.white_king_position
+            self.black_king_position = game_state.black_king_position
+            self.turn = Color.from_string(game_state.turn.upper())
+            self.is_white_checked = game_state.is_white_checked
+            self.is_black_checked = game_state.is_black_checked
+
+
 
     @staticmethod
     def default_board() -> Tuple[List[List[Optional[Piece]]], Position, Position]:

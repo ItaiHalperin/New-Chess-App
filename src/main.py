@@ -7,9 +7,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.chess_game_handler import ChessGameHandler
+from src.decoders import Decoder
 from src.encoders import Encoder
 from src.enums import MessageType
-from src.data_types import MessageDict
+from src.data_types import MessageDict, Cookie
 
 # Constants
 DEFAULT_PORT = 8000
@@ -44,16 +45,19 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.send_json(Encoder.encode_message(message_type=MessageType.STARTUP))
 
     # Handle cookie
-    cookie: MessageDict = await websocket.receive_json()
-    await game_handler.initialize_game(cookie)
+    cookie_dict: MessageDict = Decoder.recursive_json_loads(await websocket.receive_text())
+    if not cookie_dict.get("game", ""):
+        await game_handler.initialize_game()
+    else:
+        await game_handler.initialize_game(Cookie.model_validate(cookie_dict))
 
     # Main game loop
     while True:
-        if game_handler.game_board.is_checkmate():
+        if game_handler.is_checkmate():
             await game_handler.handle_checkmate()
         else:
-            data = await websocket.receive_json()
-            await game_handler.handle_move(data)
+            data = Decoder.recursive_json_loads(await websocket.receive_json())
+            await game_handler.handle_message(data)
 
 
 if __name__ == "__main__":

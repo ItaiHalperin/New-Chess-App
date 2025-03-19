@@ -1,3 +1,5 @@
+from typing import List
+
 from abs_chess_board import AbsChessBoard
 from src.enums import PieceType, Color
 from src.piece import Piece
@@ -16,6 +18,14 @@ class MoveVerifier:
         final_rank = 0 if piece.color == Color.BLACK else 7
         return bool(y2 == final_rank)
 
+    def get_all_valid_ends(self, start_pos: Position) -> List[Position]:
+        valid_ends = []
+        for i in range(8):
+            for j in range(8):
+                if self.is_valid_move(start_pos, (i, j)):
+                    valid_ends.append((i, j))
+        return valid_ends
+
     def is_valid_move(self, start_pos: Position, end_pos: Position) -> bool:
         piece = self.board.get_piece(start_pos)
         if piece is None:
@@ -29,7 +39,7 @@ class MoveVerifier:
             return False
 
         # Check if move would leave king in check
-        if self._would_leave_in_check(piece, start_pos, end_pos):
+        if self.would_leave_in_check(piece, start_pos, end_pos):
             return False
 
         return True
@@ -103,23 +113,24 @@ class MoveVerifier:
             x, y = x + x_dir, y + y_dir
         return True
 
-    def _would_leave_in_check(self, piece: Piece, start_pos: Position, end_pos: Position) -> bool:
+    def would_leave_in_check(self, piece: Piece, start_pos: Position, end_pos: Position) -> bool:
         end_piece = self.board.get_piece(end_pos)
         self.board.move(start_pos, end_pos)
         king_color = piece.color
-        king_position = self.board.white_king_position if king_color == Color.WHITE else self.board.black_king_position
+        self.is_king_checked(king_color)
+        self.board.revert_move(start_pos, end_pos, piece, end_piece)
+        return False
+
+    def is_king_checked(self, king_color: Color) -> bool:
+        king_position: Position = self.board.white_king_position\
+            if self.board.turn == Color.WHITE else self.board.black_king_position
         for x_dir in range(-1, 2):
             for y_dir in range(-1, 2):
                 if x_dir == 0 and y_dir == 0:
                     continue
                 if not self._is_direction_safe(king_color, king_position, x_dir, y_dir):
-                    self.board.revert_move(start_pos, end_pos, piece, end_piece)
                     return True
-        if self._is_threatened_by_knight(king_color, king_position):
-            self.board.revert_move(start_pos, end_pos, piece, end_piece)
-            return True
-        self.board.revert_move(start_pos, end_pos, piece, end_piece)
-        return False
+        return self._is_threatened_by_knight(king_color, king_position)
 
     def _is_direction_safe(self, king_color: Color, king_position: Position, x_dir: int, y_dir: int) -> bool:
         x, y = king_position[0] + x_dir, king_position[1] + y_dir

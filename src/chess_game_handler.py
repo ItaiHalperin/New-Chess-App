@@ -1,28 +1,53 @@
-from typing import Dict, Any
+import json
+from typing import Dict, Any, Optional
 
 from starlette.websockets import WebSocket
 
 from src.chess_board import ChessBoard
 from src.decoders import Decoder
 from src.encoders import Encoder
-from src.enums import MessageType, Color
-from src.data_types import MessageDict, MoveDict, Position
+from src.enums import MessageType, Color, MessageKeys
+from src.data_types import MessageDict, MoveDict, Position, Cookie, Message, \
+    MoveMessage
 from src.move_verifier import MoveVerifier
 
 
 class ChessGameHandler:
     def __init__(self, websocket: WebSocket) -> None:
         self.websocket = websocket
-        self.game_board: ChessBoard = ChessBoard()
+        self.game_board: Optional[ChessBoard] = None
         self.move_verifier: MoveVerifier = MoveVerifier(self.game_board)
 
-    async def initialize_game(self, cookie: MessageDict = None) -> None:
+    def is_checkmate(self)-> bool:
+        is_turn_checked: bool = self.game_board.is_white_checked \
+            if self.game_board.turn == Color.WHITE else self.game_board.is_black_checked
+        if not is_turn_checked:
+            return False
+
+        turn_king_position: Position = self.game_board.white_king_position\
+            if self.game_board.turn == Color.WHITE else self.game_board.black_king_position
+        return self.is_mate_preventable(turn_king_position)
+    def is_mate_preventable(self, king_position) -> bool:
+        king = self.game_board.get_piece(king_position)
+        for i in range(8):
+            for j in range(8):
+                cur_piece = self.game_board.get_piece((i,j))
+                if cur_piece is None or cur_piece.color != king.color:
+                    continue
+                all_valid_ends = self.move_verifier.get_all_valid_ends((i,j))
+                for end in all_valid_ends:
+                    if not self.move_verifier.would_leave_in_check(cur_piece, (i,j), end):
+                        return True
+        return False
+
+    async def initialize_game(self, cookie: Cookie = None) -> None:
         """Initialize a new game or load from cookie."""
         board = game_state = None
-        if cookie:
-            board, game_state = Decoder.decode_cookie(cookie)
-        self.game_board = ChessBoard(board=board, game_state=game_state)
-        await self.send_json(Encoder.encode_message(MessageType.NEW_STATE, self.game_board))
+        if cookie.game:
+            board, game_state = Decoder.decode_game(cookie.game)
+        self.game_board = ChessBoard(board=board, game_state=game_state, turn=Color.WHITE)
+        msg = Encoder.encode_message(MessageType.NEW_STATE, self.game_board)
+        await self.send_json(msg)
 
     async def restart_game(self) -> None:
         """Start a new game."""
@@ -39,7 +64,13 @@ class ChessGameHandler:
         # Restart game
         await self.restart_game()
 
-    async def handle_move(self, data: MoveDict, ) -> None:
+    async def handle_message(self, message: MessageDict) -> None:
+        if message["message_type"] == str(MessageType.RESTART):
+            await self.restart_game()
+        elif message["message_type"] == str(MessageType.MOVE):
+            await self.handle_move(MoveMessage.model_validate(message))
+
+    async def handle_move(self, data: MoveMessage) -> None:
         """Process a move from the client."""
         start, end = Decoder.decode_move(data)
 
@@ -53,6 +84,12 @@ class ChessGameHandler:
 
         else:
             self.game_board.move(start, end)
+            self.game_board.get_piece(end).has_moved = True
+            if self.move_verifier.is_king_checked(Color.WHITE):
+                self.game_board.is_white_checked = True
+            if self.move_verifier.is_king_checked(Color.BLACK):
+                self.game_board.is_black_checked = True
+
 
         # Update board state
         if self.game_board.is_checkmate():
@@ -66,8 +103,8 @@ class ChessGameHandler:
         await self.send_json(Encoder.encode_message(MessageType.PROMOTION, self.game_board))
 
         # Wait for user selection
-        encoded_promotion_piece = await self.websocket.receive_json()
-        promotion_piece = Decoder.decode_piece(encoded_promotion_piece)
+        message = await self.websocket.receive_json()
+        promotion_piece = Decoder.decode_piece(message[MessageKeys.PIECE])
         self.game_board.move(start, end)
         self.game_board.promote_pawn(promotion_piece, end)
 

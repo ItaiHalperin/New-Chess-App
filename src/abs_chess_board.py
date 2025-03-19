@@ -12,6 +12,8 @@ class AbsChessBoard(ABC):
         self.white_king_position: Optional[Position] = None
         self.turn: Optional[Color] = None
         self.board: Optional[List[List[Optional[Piece]]]] = None
+        self.is_white_checked: bool = False
+        self.is_black_checked: bool = False
 
     @abstractmethod
     def get_piece(self, pos: Position) -> Piece:
